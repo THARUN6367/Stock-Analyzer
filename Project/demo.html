@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nifty Stock Analyzer - Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/recharts@2.8.0/umd/Recharts.js"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        .text-gradient {
+            background: linear-gradient(to right, #0ea5e9, #1e40af);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .score-buy { @apply bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200; }
+        .score-hold { @apply bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200; }
+        .score-sell { @apply bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200; }
+        .price-positive { @apply text-green-600 dark:text-green-400; }
+        .price-negative { @apply text-red-600 dark:text-red-400; }
+        .price-neutral { @apply text-gray-600 dark:text-gray-400; }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 min-h-screen">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // Demo data
+        const demoStocks = [
+            {
+                symbol: 'RELIANCE.BSE',
+                name: 'Reliance Industries Ltd',
+                price: 2456.75,
+                change: 12.50,
+                changePercent: 0.51,
+                volume: 1234567,
+                recommendation: { action: 'BUY', score: 8.2, description: 'Strong fundamentals and technical indicators suggest a buy opportunity.' },
+                score: 8.2,
+                factors: [
+                    { name: 'Price Performance', score: 1.8, max: 2 },
+                    { name: 'Fundamentals', score: 2.5, max: 3 },
+                    { name: 'Technical Analysis', score: 2.4, max: 3 },
+                    { name: 'Volume Analysis', score: 1.5, max: 2 }
+                ]
+            },
+            {
+                symbol: 'TCS.BSE',
+                name: 'Tata Consultancy Services Ltd',
+                price: 3456.80,
+                change: -25.30,
+                changePercent: -0.73,
+                volume: 987654,
+                recommendation: { action: 'HOLD', score: 6.1, description: 'Mixed signals suggest holding current position or waiting for better entry.' },
+                score: 6.1,
+                factors: [
+                    { name: 'Price Performance', score: 0.8, max: 2 },
+                    { name: 'Fundamentals', score: 2.1, max: 3 },
+                    { name: 'Technical Analysis', score: 1.8, max: 3 },
+                    { name: 'Volume Analysis', score: 1.4, max: 2 }
+                ]
+            },
+            {
+                symbol: 'HDFCBANK.BSE',
+                name: 'HDFC Bank Ltd',
+                price: 1567.45,
+                change: 8.90,
+                changePercent: 0.57,
+                volume: 2345678,
+                recommendation: { action: 'BUY', score: 7.8, description: 'Good fundamentals with positive technical indicators.' },
+                score: 7.8,
+                factors: [
+                    { name: 'Price Performance', score: 1.5, max: 2 },
+                    { name: 'Fundamentals', score: 2.3, max: 3 },
+                    { name: 'Technical Analysis', score: 2.0, max: 3 },
+                    { name: 'Volume Analysis', score: 2.0, max: 2 }
+                ]
+            },
+            {
+                symbol: 'INFY.BSE',
+                name: 'Infosys Ltd',
+                price: 1234.60,
+                change: -15.20,
+                changePercent: -1.22,
+                volume: 1876543,
+                recommendation: { action: 'SELL', score: 4.2, description: 'Weak fundamentals and technical indicators suggest considering a sell.' },
+                score: 4.2,
+                factors: [
+                    { name: 'Price Performance', score: 0.3, max: 2 },
+                    { name: 'Fundamentals', score: 1.2, max: 3 },
+                    { name: 'Technical Analysis', score: 1.5, max: 3 },
+                    { name: 'Volume Analysis', score: 1.2, max: 2 }
+                ]
+            },
+            {
+                symbol: 'HINDUNILVR.BSE',
+                name: 'Hindustan Unilever Ltd',
+                price: 2567.30,
+                change: 5.40,
+                changePercent: 0.21,
+                volume: 876543,
+                recommendation: { action: 'HOLD', score: 5.8, description: 'Stable performance with mixed signals.' },
+                score: 5.8,
+                factors: [
+                    { name: 'Price Performance', score: 0.8, max: 2 },
+                    { name: 'Fundamentals', score: 1.8, max: 3 },
+                    { name: 'Technical Analysis', score: 1.7, max: 3 },
+                    { name: 'Volume Analysis', score: 1.5, max: 2 }
+                ]
+            },
+            {
+                symbol: 'ITC.BSE',
+                name: 'ITC Ltd',
+                price: 456.75,
+                change: 2.10,
+                changePercent: 0.46,
+                volume: 3456789,
+                recommendation: { action: 'BUY', score: 8.5, description: 'Excellent fundamentals and strong technical indicators.' },
+                score: 8.5,
+                factors: [
+                    { name: 'Price Performance', score: 1.6, max: 2 },
+                    { name: 'Fundamentals', score: 2.7, max: 3 },
+                    { name: 'Technical Analysis', score: 2.2, max: 3 },
+                    { name: 'Volume Analysis', score: 2.0, max: 2 }
+                ]
+            }
+        ];
+
+        const Header = ({ searchTerm, setSearchTerm, isDarkMode, toggleTheme }) => {
+            return (
+                <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+                    <div className="container mx-auto px-4 py-4">
+                        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                            <div className="flex items-center gap-3">
+                                <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-r from-blue-600 to-blue-800 rounded-lg">
+                                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h1 className="text-2xl font-bold text-gradient">Nifty Stock Analyzer</h1>
+                                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                                        AI-powered stock recommendations (Demo Mode)
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <div className="relative">
+                                    <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                    </svg>
+                                    <input
+                                        type="text"
+                                        placeholder="Search stocks..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        className="w-80 pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                                    />
+                                </div>
+                                <button
+                                    onClick={toggleTheme}
+                                    className="p-2 rounded-lg bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors"
+                                >
+                                    {isDarkMode ? (
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                                        </svg>
+                                    ) : (
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                                        </svg>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </header>
+            );
+        };
+
+        const StockCard = ({ stock, onClick }) => {
+            const getPriceChangeIcon = () => {
+                if (stock.changePercent > 0) return '↗';
+                if (stock.changePercent < 0) return '↘';
+                return '→';
+            };
+
+            const getPriceChangeColor = () => {
+                if (stock.changePercent > 0) return 'price-positive';
+                if (stock.changePercent < 0) return 'price-negative';
+                return 'price-neutral';
+            };
+
+            const getScoreBadgeClass = () => {
+                switch (stock.recommendation.action) {
+                    case 'BUY': return 'score-buy';
+                    case 'HOLD': return 'score-hold';
+                    case 'SELL': return 'score-sell';
+                    default: return 'score-hold';
+                }
+            };
+
+            return (
+                <div
+                    className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md transition-shadow cursor-pointer"
+                    onClick={onClick}
+                >
+                    <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-gray-900 dark:text-gray-100 truncate">
+                                {stock.symbol}
+                            </h3>
+                            <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
+                                {stock.name}
+                            </p>
+                        </div>
+                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                    </div>
+
+                    <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                                    ₹{stock.price.toFixed(2)}
+                                </p>
+                                <div className={`flex items-center gap-1 text-sm ${getPriceChangeColor()}`}>
+                                    <span>{getPriceChangeIcon()}</span>
+                                    <span>{stock.change >= 0 ? '+' : ''}{stock.change.toFixed(2)}</span>
+                                    <span>({stock.changePercent >= 0 ? '+' : ''}{stock.changePercent.toFixed(2)}%)</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                                    Score:
+                                </span>
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getScoreBadgeClass()}`}>
+                                    {stock.score.toFixed(1)}
+                                </span>
+                            </div>
+                            <span className={`text-sm font-medium ${
+                                stock.recommendation.action === 'BUY' ? 'text-green-600' :
+                                stock.recommendation.action === 'HOLD' ? 'text-yellow-600' :
+                                'text-red-600'
+                            }`}>
+                                {stock.recommendation.action}
+                            </span>
+                        </div>
+
+                        <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
+                            <span>Volume:</span>
+                            <span>{stock.volume.toLocaleString()}</span>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const StockDashboard = ({ stocks, onStockClick }) => {
+            const summary = {
+                total: stocks.length,
+                buy: stocks.filter(s => s.recommendation.action === 'BUY').length,
+                hold: stocks.filter(s => s.recommendation.action === 'HOLD').length,
+                sell: stocks.filter(s => s.recommendation.action === 'SELL').length,
+                gainers: stocks.filter(s => s.changePercent > 0).length,
+                losers: stocks.filter(s => s.changePercent < 0).length,
+                unchanged: stocks.filter(s => s.changePercent === 0).length
+            };
+
+            return (
+                <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Stocks</p>
+                                    <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{summary.total}</p>
+                                </div>
+                                <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                                </svg>
+                            </div>
+                        </div>
+
+                        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Buy Signals</p>
+                                    <p className="text-2xl font-bold text-green-600">{summary.buy}</p>
+                                </div>
+                                <div className="w-8 h-8 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
+                                    <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Hold Signals</p>
+                                    <p className="text-2xl font-bold text-yellow-600">{summary.hold}</p>
+                                </div>
+                                <div className="w-8 h-8 bg-yellow-100 dark:bg-yellow-900 rounded-full flex items-center justify-center">
+                                    <svg className="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Sell Signals</p>
+                                    <p className="text-2xl font-bold text-red-600">{summary.sell}</p>
+                                </div>
+                                <div className="w-8 h-8 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center">
+                                    <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        {stocks.map((stock) => (
+                            <StockCard
+                                key={stock.symbol}
+                                stock={stock}
+                                onClick={() => onStockClick(stock)}
+                            />
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [stocks, setStocks] = useState(demoStocks);
+            const [searchTerm, setSearchTerm] = useState('');
+            const [isDarkMode, setIsDarkMode] = useState(false);
+            const [selectedStock, setSelectedStock] = useState(null);
+
+            const toggleTheme = () => {
+                setIsDarkMode(!isDarkMode);
+                document.documentElement.classList.toggle('dark');
+            };
+
+            const handleStockClick = (stock) => {
+                setSelectedStock(stock);
+                alert(`Stock Details for ${stock.symbol}:\n\nPrice: ₹${stock.price.toFixed(2)}\nChange: ${stock.change >= 0 ? '+' : ''}${stock.change.toFixed(2)} (${stock.changePercent >= 0 ? '+' : ''}${stock.changePercent.toFixed(2)}%)\nRecommendation: ${stock.recommendation.action}\nScore: ${stock.score.toFixed(1)}/10\n\n${stock.recommendation.description}\n\nThis is a demo. In the full application, you would see detailed charts, technical indicators, and fundamental analysis.`);
+            };
+
+            const filteredStocks = stocks.filter(stock =>
+                stock.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                stock.name.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+
+            return (
+                <div className={`min-h-screen ${isDarkMode ? 'dark' : ''}`}>
+                    <div className="bg-gray-50 dark:bg-gray-900 min-h-screen">
+                        <Header
+                            searchTerm={searchTerm}
+                            setSearchTerm={setSearchTerm}
+                            isDarkMode={isDarkMode}
+                            toggleTheme={toggleTheme}
+                        />
+                        
+                        <main className="container mx-auto px-4 py-6">
+                            <StockDashboard
+                                stocks={filteredStocks}
+                                onStockClick={handleStockClick}
+                            />
+                        </main>
+                    </div>
+                </div>
+            );
+        };
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
